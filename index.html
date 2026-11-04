@@ -406,7 +406,8 @@ function restoreRequirementFlow(){
   const rows=[...create.querySelector(".list").children],list=create.querySelector(".list");
   const search=document.createElement("input");search.type="search";search.id="requirementCardSearch";search.placeholder="ابحث بين بطاقات هذا المتطلب";search.setAttribute("aria-label","البحث في بطاقات المتطلب");list.before(search);
   const more=document.createElement("details");more.className="panel";more.innerHTML=`<summary>بطاقات أخرى (${Math.max(0,rows.length-8)})</summary><div class="list"></div>`;rows.slice(8).forEach(row=>more.lastElementChild.appendChild(row));if(rows.length>8)list.after(more);
-  search.oninput=()=>{const q=norm(search.value.trim());rows.forEach(row=>row.hidden=!!q&&!norm(row.textContent).includes(q));if(rows.length>8){more.open=!!q;const count=rows.slice(8).filter(row=>!row.hidden).length;more.hidden=!count;more.firstElementChild.textContent=`بطاقات أخرى (${count})`}};
+  const empty=document.createElement("p");empty.className="empty";empty.id="requirementNoCards";empty.textContent="لا توجد بطاقة مطابقة. غيّر كلمة البحث.";empty.hidden=!!rows.length;create.appendChild(empty);
+  search.oninput=()=>{const q=norm(search.value.trim());rows.forEach(row=>row.hidden=!!q&&!norm(row.textContent).includes(q));empty.hidden=rows.some(row=>!row.hidden);if(rows.length>8){more.open=!!q;const count=rows.slice(8).filter(row=>!row.hidden).length;more.hidden=!count;more.firstElementChild.textContent=`بطاقات أخرى (${count})`}};
   const tools=document.createElement("details");tools.className="panel coverage-tools";tools.innerHTML="<summary>إدارة التغطية والشواهد</summary>";
   [...section.children].filter(e=>e!==header&&e!==create).forEach(e=>tools.appendChild(e));section.appendChild(tools);
   $("#reqBack").textContent="العودة إلى صانع الشواهد";
