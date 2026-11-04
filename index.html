@@ -320,6 +320,15 @@ function bindRole(){const s=$("#roleSel");if(s)s.onchange=()=>{settings.myRole=s
 let priorityRequirements=[];
 function refreshPriorities(){priorityRequirements=coverageRows().filter(r=>!r.complete)}
 function cardCoversRequirement(c,r){return r.id===4?c.k==="imp":r.records.includes(c.rec)}
+function priorityFirst(cards){
+  const first=[],rest=[];
+  for(const c of cards)(priorityRequirements.some(r=>cardCoversRequirement(c,r))?first:rest).push(c);
+  return [...first,...rest];
+}
+function cardList(cards,opts={},limit=Infinity){
+  const ordered=priorityFirst(cards),shown=ordered.slice(0,limit),remaining=ordered.slice(limit);
+  return shown.map(c=>cardRow(c,opts)).join("")+(remaining.length?`<details class="panel more-evidence"><summary>عرض بقية الشواهد (${remaining.length})</summary><div class="list">${remaining.map(c=>cardRow(c,opts)).join("")}</div></details>`:"");
+}
 function cardRow(c, opts={}){
   const needed=priorityRequirements.filter(r=>cardCoversRequirement(c,r));
   let src = "";
@@ -373,7 +382,7 @@ function viewRequirement(){
    <form class="panel requirement-target" id="requirementTargetForm"><label for="requirementTarget">المستهدف من الشواهد المعتمدة<input type="number" id="requirementTarget" min="1" max="9999" step="1" required value="${r.target}"></label><button type="submit" class="btn ghost">حفظ المستهدف</button></form>
    <div class="panel"><h2>الشواهد المرتبطة</h2><p class="small muted">الصور لا تزيد العدد. يُحسب رقم الشاهد مرة واحدة بعد اعتماد المراجع. أضف ملفات الشاهد JSON بعد المراجعة؛ سلّم الوثائق الأصلية عبر قناة المدرسة.</p><div class="list" id="requirementEvidence">${r.files.map(ev=>`<div class="row"><div class="body"><b>${esc(ev.actor)||"منفذ غير محدد"}</b><div class="small">${esc(ev.date)} · ${esc(ev.id)}</div><span class="small">${esc(ev.decision)||"بانتظار المراجعة"}</span></div><button type="button" class="btn ghost" data-unlink-evidence="${esc(ev.id)}" aria-label="إلغاء ربط الشاهد ${esc(ev.id)} بهذا المتطلب">إلغاء الربط</button></div>`).join("")||`<p class="muted">لم تُربط شواهد بهذا المتطلب بعد</p>`}</div><button type="button" class="btn" id="requirementImport">أضف ملفات شواهد لهذا المتطلب</button><p id="coverageImportStatus" role="status"></p>
    ${available.length?`<form id="requirementLinkForm"><label for="existingEvidence">اربط شاهدًا موجودًا في اللوحة</label><select id="existingEvidence">${available.map(ev=>`<option value="${esc(ev.id)}">${esc(ev.actor)} · ${esc(ev.date)} · ${esc(ev.id)} · ${esc(ev.decision)||"بانتظار المراجعة"}</option>`).join("")}</select><button type="submit" class="btn ghost" style="margin-top:8px">ربط الشاهد</button></form>`:""}</div>
-   <details class="panel"><summary>أنشئ شاهدًا لهذا المتطلب</summary><p class="small muted">اختر بطاقة التوثيق المناسبة من البنك. إرفاق أصل الوثيقة وتسليمه يكون حسب المطلوب أعلاه.</p><div class="list">${cards.map(c=>cardRow(c)).join("")}</div></details></section>`;
+   <details class="panel"><summary>أنشئ شاهدًا لهذا المتطلب</summary><p class="small muted">اختر بطاقة التوثيق المناسبة من البنك. إرفاق أصل الوثيقة وتسليمه يكون حسب المطلوب أعلاه.</p><div class="list">${cardList(cards)}</div></details></section>`;
   $("#reqBack").onclick=()=>go("home",{q:""});bindCards();restoreRequirementFlow();$(".coverage-tools").open=!!toolsWereOpen;
   const nb=$("#nextRequirement");if(nb)nb.onclick=()=>next?go("requirement",{requirement:next.id}):go("coverage",{q:""});
   $("#requirementTargetForm").onsubmit=e=>{e.preventDefault();const input=$("#requirementTarget"),n=Number(input.value);if(!input.validity.valid||!Number.isInteger(n))return;const targets=store.get("coverageTargets",{});store.set("coverageTargets",{...(targets&&typeof targets==="object"?targets:{}),[r.id]:n});if(r.approved>=n)go("home",{tab:"rec",q:""});else viewRequirement();toast("حُفظ المستهدف")};
@@ -440,7 +449,7 @@ function paintRes(){
   if(q.length>=2){
     const terms=q.split(/\s+/);
     const hit=B.cards.filter(c=>forRole(c)&&terms.every(t=>norm(c.id+" "+c.t+" "+(c.domt||"")+" "+(c.brief||"")+" "+(REC[c.rec]?REC[c.rec].name:"")).includes(t)));
-    box.innerHTML = hit.length? `<div class="group-h">${hit.length} بطاقة</div><div class="list">${hit.slice(0,80).map(c=>cardRow(c)).join("")}</div>`
+    box.innerHTML = hit.length? `<div class="group-h">${hit.length} بطاقة</div><div class="list">${cardList(hit,{},80)}</div>`
       : `<div class="empty">لا توجد بطاقة لصفة «${esc(role())}» بهذه الكلمة. جرّب كلمة أخرى، أو اختر «الكل» في صفتي.</div>`;
     bindCards(box); return;
   }
@@ -496,7 +505,7 @@ function listImprovement(){
 function listPrograms(){
   const cs=B.cards.filter(c=>c.k==="prg"&&forRole(c));
   if(!cs.length) return `<div class="empty">لا توجد برامج مسندة إلى «${esc(role())}». اختر «الكل» لعرض البرامج الستين.</div>`;
-  return `<div class="group-h">${cs.length} برنامجًا</div><div class="list">${cs.map(c=>cardRow(c)).join("")}</div>`;
+  return `<div class="group-h">${cs.length} برنامجًا</div><div class="list">${cardList(cs)}</div>`;
 }
 
 /* ---------- شاشة السجل ---------- */
@@ -511,10 +520,10 @@ function viewRecord(){
   for(const d of doms){
     const list=mine.filter(c=>(c.dom||"")===(d.code||"")); if(!list.length) continue;
     h+=`<section class="dom"><div class="dom-h"><h2>${esc(d.code?d.code+" · ":"")}${esc(d.title)}</h2></div>${d.what?`<p class="small muted" style="margin:0 0 8px">${md(d.what)}</p>`:""}
-      <div class="list">${list.map(c=>cardRow(c,{hideSrc:true})).join("")}</div></section>`;
+      <div class="list">${cardList(list,{hideSrc:true})}</div></section>`;
   }
   const prg=B.cards.filter(c=>c.k==="prg"&&c.rec===r.code&&forRole(c));
-  if(prg.length) h+=`<section class="dom"><h2>برامج الخطة التشغيلية التي تُوثَّق هنا</h2><div class="list" style="margin-top:8px">${prg.map(c=>cardRow(c,{hideSrc:true})).join("")}</div></section>`;
+  if(prg.length) h+=`<section class="dom"><h2>برامج الخطة التشغيلية التي تُوثَّق هنا</h2><div class="list" style="margin-top:8px">${cardList(prg,{hideSrc:true})}</div></section>`;
   $("#app").innerHTML=h; $("#bk").onclick=back; bindRole(); bindCards();
   document.querySelectorAll("[data-ind]").forEach(b=>b.onclick=()=>go("ind",{ind:b.dataset.ind}));
 }
@@ -546,7 +555,7 @@ function viewIndicator(){
     const cs=cardsOfRec(r.code).filter(forRole).map(c=>{let s=0;for(const w of tokens(c.t+" "+(c.domt||"")))if(atok.has(w))s++;return [s,c]}).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
     h+=`<details class="panel" style="margin-bottom:8px"><summary><span class="code" style="direction:ltr">${esc(r.code)}</span> ${esc(r.name)} <span class="small muted">· ${cs.length} بطاقة</span></summary>
       ${ask.length?`<div class="guide" style="margin-bottom:8px"><b>ما يطلبه المؤشر في هذا السجل</b><ul>${ask.slice(0,4).map(a=>`<li>${esc(a.t)}</li>`).join("")}</ul>${ask.length>4?`<span class="small muted">و${ask.length-4} مطالب أخرى</span>`:""}</div>`:""}
-      <div class="list">${cs.length?cs.slice(0,12).map(c=>cardRow(c,{hideSrc:true})).join(""):`<span class="small muted">لا بطاقات لصفتك هنا.</span>`}</div></details>`;
+      <div class="list">${cs.length?cardList(cs,{hideSrc:true},12):`<span class="small muted">لا بطاقات لصفتك هنا.</span>`}</div></details>`;
   }
   h+=`</section>`;
   $("#app").innerHTML=h; $("#bk").onclick=back; bindRole();
