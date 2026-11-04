@@ -698,7 +698,6 @@ async function saveFile(name,data){
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
 async function exportPdf(ev){
   await dlReady;
-  if(!DL && !window.claude && !matchMedia("(pointer:coarse)").matches){ const title=document.title;try{document.title=fileBase(ev);window.print()}finally{document.title=title} return; }   // الملف المحلي: طباعة المتصفح تعطي PDF نصيًا
   const btn=$("#bPdf"); btn.disabled=true; btn.textContent="يجري التجهيز…";
   try{
     if(!window.html2canvas) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
