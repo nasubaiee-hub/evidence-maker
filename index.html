@@ -139,6 +139,26 @@ button,summary{min-width:44px}
   .mobile-action span{font-size:13px}
 }
 
+
+/* متابعة المتطلبات */
+.coverage-summary{display:grid;gap:8px;margin-bottom:14px}
+.coverage-list{display:grid;gap:10px}
+.requirement-card{display:grid;gap:8px;text-align:right;width:100%;overflow-wrap:anywhere}
+.requirement-card.next{border:2px solid var(--accent)}
+.requirement-card progress{display:block;width:100%;height:12px;accent-color:var(--accent)}
+.requirement-meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.requirement-detail{display:grid;gap:14px}
+.requirement-detail p{margin:4px 0}
+.requirement-detail .bar{margin-top:8px}
+.requirement-target{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.requirement-target label{display:grid;gap:4px}
+.requirement-target input{max-width:140px}
+.requirement-picker{margin-bottom:12px}
+.requirement-picks{display:grid;gap:6px;max-height:300px;overflow-y:auto}
+.requirement-picks label{display:flex;gap:8px;align-items:center;min-height:44px;font-size:14px}
+.requirement-picks input{flex:0 0 44px}
+.requirement-context{margin-bottom:12px}
+
 /* ===== صفحة الشاهد A4 ===== */
 .sheet-scroll{overflow-x:auto;background:var(--soft);border-radius:var(--r);padding:12px}
 .sheet-fit{transform-origin:top right}
@@ -218,6 +238,7 @@ button,summary{min-width:44px}
 <input type="file" id="fileCamera" accept="image/*" capture="environment" hidden>
 <input type="file" id="filePhoto" accept="image/*" hidden>
 <input type="file" id="fileJson" accept=".json,application/json" hidden>
+<input type="file" id="fileCoverage" accept=".json,application/json" multiple hidden>
 <input type="file" id="fileBoard" accept=".json,application/json" multiple hidden>
 <input type="file" id="fileLogo" accept="image/*" hidden>
 
@@ -263,7 +284,7 @@ function saveSettings(){store.set("settings",settings);paintSchool()}
 function paintSchool(){$("#schoolLine").textContent = settings.school}
 
 /* ---------- الحالة والتنقل ---------- */
-let S = {view:"home", tab:store.get("tab","rec"), q:"", stage:store.get("stage", (B.stages[0]||{}).stage)};
+let S = {view:"home", tab:store.get("coverageTab","req"), q:"", stage:store.get("stage", (B.stages[0]||{}).stage)};
 const stack = [];
 function go(view, extra){stack.push(Object.assign({},S));S=Object.assign({},S,{view},extra||{});render();window.scrollTo(0,0)}
 function back(){S = stack.pop() || {view:"home",tab:S.tab,q:"",stage:S.stage};render();window.scrollTo(0,0)}
@@ -291,16 +312,76 @@ function cardRow(c, opts={}){
     <div class="t">${md(c.t)}</div>
     <div class="meta"><span>المنفذ: ${esc(c.own||"—")}</span>${c.when?`<span>· ${esc(c.when)}</span>`:""}${c.week?`<span>· ${esc(c.term||"")} ${esc(c.week)}</span>`:""}</div>
     <span class="go">وثّق ←</span></button>`}
-function bindCards(root=document){root.querySelectorAll("[data-card]").forEach(b=>b.onclick=()=>startEvidence(b.dataset.card, S.fromInd))}
+function bindCards(root=document){root.querySelectorAll("[data-card]").forEach(b=>b.onclick=()=>startEvidence(b.dataset.card, S.fromInd, S.view==="requirement"?S.requirement:null))}
+
+
+/* ---------- تغطية المتطلبات ---------- */
+const REQUIREMENTS = [{"id":1,"title":"الخطة التشغيلية السارية","owner":"منسق الخطة ولجنة التميز","attachments":"نسخة الخطة، وما يثبت اعتمادها، وآخر تعديل معتمد إن وجد","reviewer":"مدير المدرسة","records":["ADM-03"]},{"id":2,"title":"متابعة تنفيذ البرامج والأنشطة","owner":"كل مسؤول برنامج، ويجمعها منسق المتابعة","attachments":"سجل التنفيذ، تقرير البرنامج، دليل التنفيذ المناسب، حالة التعثر والإجراء التالي","reviewer":"الوكيل المختص، ثم منسق المتابعة لتجميع البند","records":["ADM-02"]},{"id":3,"title":"تقارير التقويم الذاتي للمراحل الثلاث","owner":"منسق التقويم","attachments":"التقارير الثلاثة المتوفرة، وبيانات النسخ ودورة التقويم ومواضع الأصول","reviewer":"لجنة التميز ومدير المدرسة","records":["ADM-03"]},{"id":4,"title":"متابعة تنفيذ خطة التحسين لكل مرحلة","owner":"مسؤول كل إجراء، ويجمعها منسق التقويم","attachments":"خطة المرحلة المتوفرة، متابعة مؤرخة للإجراءات، شواهد التنفيذ، ما يثبت الاعتماد","reviewer":"لجنة التميز ومدير المدرسة","records":[]},{"id":5,"title":"تنفيذ برامج القيم الإسلامية والهوية الوطنية","owner":"رائد النشاط ومسؤولو البرامج ذات الصلة","attachments":"خطة أو بطاقة البرنامج، محتوى التنفيذ، مشاركة الطلاب، منتجات أو صور مناسبة","reviewer":"الوكيل المختص بالنشاط","records":["ADM-02"]},{"id":6,"title":"التعريف بميثاق أخلاقيات مهنة التعليم وتفعيله","owner":"المسؤول المكلف بالالتزام المهني","attachments":"نسخة الميثاق بمرجعها، إقرارات الاطلاع، محتوى التعريف، شواهد تطبيق مناسبة","reviewer":"مدير المدرسة","records":["ADM-10"]},{"id":7,"title":"خطة التوجيه الطلابي وتنفيذ البرامج السلوكية","owner":"الموجه الطلابي","attachments":"الخطة، سجل تنفيذ البرامج، المواد المستخدمة، ملخص المتابعة دون تفاصيل الحالات","reviewer":"وكيل شؤون الطلاب","records":["ADM-05","ADM-06"]},{"id":8,"title":"رعاية الموهوبين وتنفيذ الأنشطة الإثرائية","owner":"المكلف برعاية الموهوبين والمعلمون المشاركون","attachments":"خطة البرنامج، أساس الترشيح، سجل التنفيذ، منتجات مرمزة، متابعة المستفيدين","reviewer":"وكيل الشؤون التعليمية، بالتنسيق مع الموجه الطلابي","records":["ADM-07"]},{"id":9,"title":"تنفيذ برامج توعية أولياء الأمور","owner":"المكلف بالتواصل مع الأسرة والموجه الطلابي","attachments":"المحتوى التوعوي، الدعوة، دليل المشاركة أو الوصول، الأسئلة والاستجابات والمتابعة","reviewer":"وكيل شؤون الطلاب","records":["ADM-08"]},{"id":10,"title":"اتفاقيات الشراكة وشواهد تفعيلها","owner":"منسق الشراكة","attachments":"الاتفاقيات الفعلية المعتمدة، شواهد تنفيذ التزامات الأطراف، محاضر التسلم أو تقارير التنفيذ","reviewer":"مدير المدرسة، مع مراعاة مسار اعتماد الشراكات القائم","records":["ADM-09"]},{"id":11,"title":"خطة دعم الحصول على الرخص المهنية ومتابعتها","owner":"المكلف بمتابعة الرخص والتطوير المهني","attachments":"حصر الاحتياج، خطة الدعم، المواد أو اللقاءات المنفذة، متابعة الإجراءات","reviewer":"وكيل الشؤون التعليمية","records":["ADM-11"]},{"id":12,"title":"كشف الرخص المهنية المحدث","owner":"المكلف بمتابعة الرخص، ويزوده المعلمون ببياناتهم","attachments":"كشف الحالة والصلاحية، مصدر التحقق، تاريخ التحديث؛ تحفظ التفاصيل للمخولين","reviewer":"الوكيل المختص، ثم مدير المدرسة","records":["ADM-11"]},{"id":13,"title":"تنفيذ خطة التطوير المهني وتطبيق مخرجاتها","owner":"منسق التطوير المهني والمعلمون المشاركون","attachments":"الخطة، الاحتياج، الحضور أو إثبات المشاركة، محتوى التدريب، نموذج تطبيق لاحق","reviewer":"وكيل الشؤون التعليمية","records":["ADM-11"]},{"id":14,"title":"تحديث البيانات والسجلات في الأنظمة التقنية","owner":"مسجل المعلومات والمكلف بكل نظام","attachments":"تقرير أو عرض يثبت التحديث، تاريخ المراجعة، ملاحظات المطابقة والتصحيحات","reviewer":"الوكيل المختص بالبيانات المعنية","records":["ADM-03"]},{"id":15,"title":"تفعيل إجراءات حماية المتعلمين والمحافظة على حقوقهم","owner":"الموجه الطلابي والمكلفون بالحماية","attachments":"الإجراء المعتمد، مواد التعريف بالحقوق، قنوات الإبلاغ، شواهد التوعية، إفادات متابعة مرمزة عند الحاجة","reviewer":"وكيل شؤون الطلاب ومدير المدرسة","records":["ADM-10","ADM-06"]},{"id":16,"title":"تنفيذ الوقاية من التنمر ومتابعة المعالجة","owner":"الموجه الطلابي والمكلفون بالإشراف","attachments":"البرنامج الوقائي، محتوى التوعية، جدول الإشراف، إعلان قناة البلاغ، ملخص متابعة مرمز عند وجود حالات","reviewer":"وكيل شؤون الطلاب","records":["ADM-06"]},{"id":17,"title":"توزيع المقررات وإعداد الدروس ومتابعة المناهج","owner":"معلمو المواد، ويجمع العينات منسقو المواد","attachments":"توزيع المقرر، عينات إعداد دروس فعلية، سجل المنفذ مقابل المخطط، معالجة التأخر إن وجد","reviewer":"وكيل الشؤون التعليمية","records":["TLD-01","TLD-02"]},{"id":18,"title":"عينات أدوات التقويم وأعمال الطلاب","owner":"معلمو المواد","attachments":"الأداة المستخدمة، معيار التصحيح أو التقدير، استجابات وأعمال طلاب مرمزة مرتبطة بالأداة","reviewer":"منسق المادة أو المعلم المكلف بالمراجعة، ثم وكيل الشؤون التعليمية","records":["TLD-03","TLD-07"]},{"id":19,"title":"تحليل نتائج الطلاب والقرارات المترتبة عليه","owner":"معلمو المواد ومنسقوها ولجنة التحصيل","attachments":"مصدر البيانات، الفترة والمرحلة والمادة، التحليل الفعلي، محضر القرار أو الإجراء التعليمي","reviewer":"وكيل الشؤون التعليمية ولجنة التحصيل","records":["TLD-06","LO-02"]},{"id":20,"title":"تنفيذ الخطط العلاجية والإثرائية ومتابعتها","owner":"معلمو المواد والمعلمون المكلفون بالدعم والإثراء","attachments":"تشخيص الحاجة، الخطة، سجل الجلسات والمشاركة، منتجات الطلاب، القياس اللاحق وقرار المتابعة إن توفر","reviewer":"لجنة التحصيل ووكيل الشؤون التعليمية","records":["TLD-05"]},{"id":21,"title":"التغذية الراجعة ومتابعة تقدم الطلاب","owner":"معلمو المواد","attachments":"عمل أولي مؤرخ، تغذية راجعة محددة، استجابة الطالب، عمل لاحق للمهارة نفسها وقرار الخطوة التالية","reviewer":"منسق المادة أو المكلف بالمراجعة، ثم وكيل الشؤون التعليمية","records":["TLD-03","LO-04"]},{"id":22,"title":"تنفيذ المبادرات والأعمال التطوعية","owner":"رائد النشاط ومسؤولو المبادرات والتطوع","attachments":"خطة المبادرة أو الفرصة، سجل التنفيذ والمشاركين، منتج أو منفعة موثقة، مصدر الساعات إن ذكرت","reviewer":"الوكيل المختص بالنشاط","records":["ENV-03","ADM-02"]},{"id":23,"title":"متابعة السلوك والانضباط والإجراءات المتخذة","owner":"وكيل شؤون الطلاب والموجه الطلابي والمكلفون بالإشراف","attachments":"سجلات الإشراف، ملخص الوقائع والإجراءات، مرجع الإجراء، متابعة الدعم؛ مع تقييد بيانات الحالات","reviewer":"وكيل شؤون الطلاب، ومدير المدرسة فيما يستلزم عرضه","records":["ADM-05","ADM-06"]},{"id":24,"title":"متابعة الحضور والغياب والتأخر والمعالجة","owner":"المكلف بالرصد، ووكيل شؤون الطلاب، والموجه الطلابي","attachments":"كشوف وتقارير الحضور، المطابقة مع نور، التواصل مع الأسر، خطط معالجة التكرار ومتابعتها","reviewer":"وكيل شؤون الطلاب","records":["ADM-04","ENV-02"]},{"id":25,"title":"شهادة مطابقة المبنى","owner":"وكيل الشؤون المدرسية أو المكلف بملف المبنى","attachments":"الوثيقة المقصودة لدى الجهة الطالبة، مصدرها وبياناتها والمبنى المشمول بها","reviewer":"مدير المدرسة","records":["ENV-S06","ENV-S02"]},{"id":26,"title":"شهادة الدفاع المدني السارية","owner":"وكيل الشؤون المدرسية والمكلف بالأمن والسلامة","attachments":"الشهادة الفعلية، بيانات السريان والمبنى، وما يتصل بملاحظاتها أو تجديدها عند الحاجة","reviewer":"مدير المدرسة","records":["ENV-S02"]}];
+function requirementIds(values){return Array.isArray(values)?[...new Set(values.filter(v=>(typeof v==="number"||typeof v==="string")&&/^\d+$/.test(String(v))).map(Number).filter(v=>Number.isInteger(v)&&v>=1&&v<=REQUIREMENTS.length))]:[]}
+function coverageBoard(){const rows=store.get("board",[]);return Array.isArray(rows)?rows.filter(x=>x&&typeof x.id==="string"&&x.id.trim()&&Object.hasOwn(CARD,x.card)):[]}
+function requirementTarget(id){const all=store.get("coverageTargets",{}),n=Number(all&&all[id]);return Number.isInteger(n)&&n>=1&&n<=9999?n:4}
+function coverageRows(){
+  const unique=new Map(coverageBoard().map(ev=>[ev.id,ev]));
+  return REQUIREMENTS.map(r=>{const files=[...unique.values()].filter(ev=>requirementIds(ev.requirementIds).includes(r.id));
+    const approved=files.filter(ev=>["معتمد","معتمد مع ملاحظة"].includes(ev.decision)).length;
+    const pending=files.filter(ev=>!ev.decision).length,returned=files.filter(ev=>ev.decision==="يُعاد مع توجيه").length,target=requirementTarget(r.id);
+    return {...r,files,approved,pending,returned,target,complete:approved>=target};});
+}
+function requirementTile(r,next=false){return `<button type="button" class="panel requirement-card ${next?"next":""}" data-requirement="${r.id}" aria-label="المتطلب ${r.id}: ${esc(r.title)}، معتمد ${r.approved} من ${r.target}"><span class="requirement-meta"><span>المتطلب ${r.id}</span><span>${r.complete?"مكتمل التغطية":next?"المتطلب التالي":"غير مكتمل"}</span></span><h2>${esc(r.title)}</h2><span>اعتُمد ${r.approved} من ${r.target} شواهد</span><progress value="${Math.min(r.approved,r.target)}" max="${r.target}" aria-label="تغطية المتطلب ${r.id}"></progress><span class="requirement-meta"><span>المتبقي ${Math.max(0,r.target-r.approved)}</span><span>للمراجعة ${r.pending}</span><span>مُعاد ${r.returned}</span></span><span class="small muted">${esc(r.owner)}</span></button>`}
+function bindRequirements(){document.querySelectorAll("[data-requirement]").forEach(b=>b.onclick=()=>go("requirement",{requirement:+b.dataset.requirement}))}
+function paintCoverage(){
+  const rows=coverageRows(),q=norm(S.q.trim()),visible=rows.filter(r=>!q||norm(r.id+" "+r.title+" "+r.owner).includes(q));
+  const pending=visible.filter(r=>!r.complete),done=visible.filter(r=>r.complete),next=pending[0];
+  $("#q").placeholder="ابحث برقم المتطلب أو اسمه أو المسؤول عنه";
+  $("#res").innerHTML=`<section class="panel coverage-summary"><h1>تغطية المتطلبات</h1><p id="coverageSummary" style="margin:0">اكتملت تغطية ${rows.filter(r=>r.complete).length} من ${rows.length} متطلبًا</p><p class="small muted" style="margin:0">المستهدف الافتراضي أربعة شواهد معتمدة لكل متطلب. عدّله من صفحة المتطلب. يُحسب كل رقم شاهد مرة واحدة.</p><p class="small muted" style="margin:0">التغطية حسب الملفات المحفوظة أو المضافة إلى هذا المتصفح. أضف ملفات المراجعة لتحديث الاعتماد.</p><button type="button" class="btn ghost" id="coverageImport">إضافة ملفات شواهد</button><span id="coverageImportStatus" role="status"></span></section>
+   ${next?`<p class="group-h">ابدأ بالمتطلب التالي، أو افتح أي متطلب للعمل بالتوازي</p>`:!q?`<p class="note ok">اكتملت تغطية جميع المتطلبات</p>`:""}<div class="coverage-list" id="coveragePending">${pending.map(r=>requirementTile(r,r===next)).join("")}</div>
+   ${done.length?`<details class="panel" id="coverageCompleted" style="margin-top:14px"><summary>مكتمل التغطية (${done.length})</summary><div class="coverage-list">${done.map(r=>requirementTile(r)).join("")}</div></details>`:""}
+   ${!visible.length?`<p class="empty">لا يوجد متطلب مطابق للبحث</p>`:""}`;
+  bindRequirements();$("#coverageImport").onclick=()=>{coverageImportRequirement=null;$("#fileCoverage").click()};
+}
+function requirementPicker(ev){const ids=requirementIds(ev.requirementIds);return `<details class="panel requirement-picker" ${ids.length?"open":""}><summary>المتطلبات التي يخدمها الشاهد</summary><p class="hint" id="requirementSelection">${ids.length?"المتطلبات المحددة: "+ids.join("، "):"اختر المتطلبات التي يخدمها الشاهد"}</p><div class="requirement-picks">${REQUIREMENTS.map(r=>`<label><input type="checkbox" data-requirement-pick value="${r.id}" ${ids.includes(r.id)?"checked":""}><span>${r.id}. ${esc(r.title)}</span></label>`).join("")}</div><p class="hint">يُحسب الشاهد بعد اعتماد المراجع وحفظ ملف المراجعة.</p></details>`}
+function showRequirementContext(ev){const ids=requirementIds(ev&&ev.requirementIds);if(!ids.length)return;const aside=$("#app aside");if(!aside)return;const box=document.createElement("div");box.className="panel requirement-context noprint";box.innerHTML=`<h3>المتطلبات المرتبطة</h3><p class="small">${ids.map(id=>id+". "+esc(REQUIREMENTS[id-1].title)).join("<br>")}</p><button type="button" class="btn ghost" id="openCoverage">عرض التغطية</button>`;aside.prepend(box);$("#openCoverage").onclick=()=>go("home",{tab:"req",q:""});
+  const reviewSave=$("#rJson");if(reviewSave){const before=new Set(coverageRows().filter(r=>r.complete).map(r=>r.id));reviewSave.addEventListener("click",()=>{if(coverageRows().some(r=>ids.includes(r.id)&&r.complete&&!before.has(r.id))){go("home",{tab:"req",q:""});toast("اكتملت التغطية. تقدّم المتطلب التالي.")}})}
+}
+function viewRequirement(){
+  const r=coverageRows().find(x=>x.id===S.requirement);if(!r){go("home",{tab:"req",q:""});return}
+  const available=coverageBoard().filter(ev=>!requirementIds(ev.requirementIds).includes(r.id));
+  const next=coverageRows().find(x=>!x.complete&&x.id!==r.id);
+  const cards=B.cards.filter(c=>r.id===4?c.k==="imp":r.records.includes(c.rec));
+  $("#app").innerHTML=`<button type="button" class="back" id="reqBack">رجوع إلى التغطية</button><section class="requirement-detail"><div class="panel"><span class="small muted">المتطلب ${r.id}</span><h1>${esc(r.title)}</h1><p id="requirementStatus" role="status">اعتُمد ${r.approved} من ${r.target} شواهد · المتبقي ${Math.max(0,r.target-r.approved)}</p>${r.complete?`<p class="note ok">اكتملت تغطية هذا المتطلب</p><button type="button" class="btn" id="nextRequirement">${next?"انتقل إلى المتطلب التالي":"عرض اكتمال التغطية"}</button>`:""}<p><b>مسؤول التجهيز:</b> ${esc(r.owner)}</p><p><b>المطلوب إرفاقه:</b> ${esc(r.attachments)}</p><p><b>المراجع:</b> ${esc(r.reviewer)}</p></div>
+   <form class="panel requirement-target" id="requirementTargetForm"><label for="requirementTarget">المستهدف من الشواهد المعتمدة<input type="number" id="requirementTarget" min="1" max="9999" step="1" required value="${r.target}"></label><button type="submit" class="btn ghost">حفظ المستهدف</button></form>
+   <div class="panel"><h2>الشواهد المرتبطة</h2><p class="small muted">الصور لا تزيد العدد. يُحسب رقم الشاهد مرة واحدة بعد اعتماد المراجع. أضف ملفات الشاهد JSON بعد المراجعة؛ سلّم الوثائق الأصلية عبر قناة المدرسة.</p><div class="list" id="requirementEvidence">${r.files.map(ev=>`<div class="row"><div class="body"><b>${esc(ev.actor)||"منفذ غير محدد"}</b><div class="small">${esc(ev.date)} · ${esc(ev.id)}</div><span class="small">${esc(ev.decision)||"بانتظار المراجعة"}</span></div><button type="button" class="btn ghost" data-unlink-evidence="${esc(ev.id)}" aria-label="إلغاء ربط الشاهد ${esc(ev.id)} بهذا المتطلب">إلغاء الربط</button></div>`).join("")||`<p class="muted">لم تُربط شواهد بهذا المتطلب بعد</p>`}</div><button type="button" class="btn" id="requirementImport">أضف ملفات شواهد لهذا المتطلب</button><p id="coverageImportStatus" role="status"></p>
+   ${available.length?`<form id="requirementLinkForm"><label for="existingEvidence">اربط شاهدًا موجودًا في اللوحة</label><select id="existingEvidence">${available.map(ev=>`<option value="${esc(ev.id)}">${esc(ev.actor)} · ${esc(ev.date)} · ${esc(ev.id)} · ${esc(ev.decision)||"بانتظار المراجعة"}</option>`).join("")}</select><button type="submit" class="btn ghost" style="margin-top:8px">ربط الشاهد</button></form>`:""}</div>
+   <details class="panel"><summary>أنشئ شاهدًا لهذا المتطلب</summary><p class="small muted">اختر بطاقة التوثيق المناسبة من البنك. إرفاق أصل الوثيقة وتسليمه يكون حسب المطلوب أعلاه.</p><div class="list">${cards.map(c=>cardRow(c)).join("")}</div></details></section>`;
+  $("#reqBack").onclick=()=>go("home",{tab:"req",q:""});bindCards();
+  const nb=$("#nextRequirement");if(nb)nb.onclick=()=>next?go("requirement",{requirement:next.id}):go("home",{tab:"req",q:""});
+  $("#requirementTargetForm").onsubmit=e=>{e.preventDefault();const input=$("#requirementTarget"),n=Number(input.value);if(!input.validity.valid||!Number.isInteger(n))return;const targets=store.get("coverageTargets",{});store.set("coverageTargets",{...(targets&&typeof targets==="object"?targets:{}),[r.id]:n});if(r.approved>=n)go("home",{tab:"req",q:""});else viewRequirement();toast("حُفظ المستهدف")};
+  $("#requirementImport").onclick=()=>{coverageImportRequirement=r.id;$("#fileCoverage").click()};
+  const link=$("#requirementLinkForm");if(link)link.onsubmit=e=>{e.preventDefault();const id=$("#existingEvidence").value;setEvidenceRequirement(id,r.id,true);refreshRequirement(r.id)};
+  document.querySelectorAll("[data-unlink-evidence]").forEach(b=>b.onclick=()=>{setEvidenceRequirement(b.dataset.unlinkEvidence,r.id,false);viewRequirement()});
+}
+function setEvidenceRequirement(evidenceId,requirementId,add){const rows=store.get("board",[]);if(!Array.isArray(rows))return;for(const ev of rows)if(ev&&ev.id===evidenceId){const ids=requirementIds(ev.requirementIds);ev.requirementIds=add?requirementIds([...ids,requirementId]):ids.filter(id=>id!==requirementId)}store.set("board",rows)}
+function refreshRequirement(id){const r=coverageRows().find(x=>x.id===id);if(r&&r.complete){go("home",{tab:"req",q:""});toast("اكتملت التغطية. تقدّم المتطلب التالي.")}else viewRequirement()}
+let coverageImportRequirement=null;
+$("#fileCoverage").onchange=async e=>{
+  const files=[...e.target.files],current=coverageImportRequirement;e.target.value="";let loaded=0,rejected=0,unlinked=0;
+  for(const f of files){try{const ev=JSON.parse(await f.text());if(!ev||typeof ev.id!=="string"||!ev.id.trim()||!Object.hasOwn(CARD,ev.card))throw 0;
+    const previous=coverageBoard().find(x=>x.id===ev.id);
+    ev.requirementIds=requirementIds([...(previous?.requirementIds||[]),...requirementIds(ev.requirementIds),current]);
+    boardAdd(ev);loaded++;if(!ev.requirementIds.length)unlinked++;
+  }catch(err){rejected++}}
+  if(S.view==="requirement"&&current&&S.requirement===current)refreshRequirement(current);else if(S.view==="home")paintRes();
+  const status=$("#coverageImportStatus");if(status)status.textContent=`أضيف ${loaded} ملفًا${rejected?". تعذر فتح "+rejected+" ملفًا؛ اختر ملفات الشاهد JSON الصالحة":""}${unlinked?". افتح المتطلب واربط الملفات غير المرتبطة من قائمة الشواهد الموجودة":""}`;
+};
 
 /* ---------- الشاشة الرئيسية ---------- */
 function viewHome(){
-  const tabs = [["rec","السجلات"],["ind","المؤشرات"],["imp","خطة التحسين"],["prg","برامج الخطة"]];
+  const tabs = [["req","تغطية المتطلبات"],["rec","السجلات"],["ind","المؤشرات"],["imp","خطة التحسين"],["prg","برامج الخطة"]];
   const welcome = !settings.me ? `<form id="welcome" class="panel welcome"><h2>ابدأ باسمك وصفتك</h2><div class="grid2"><div class="f"><label for="welcomeName">اسمك</label><input id="welcomeName" type="text" list="welcomePeople" autocomplete="name" required minlength="3"><datalist id="welcomePeople">${B.school.people.map(p=>`<option value="${esc(p.name)}">${esc(p.role)}</option>`).join("")}</datalist></div><div class="f"><label for="welcomeRole">صفتك</label><select id="welcomeRole">${B.roles.map(r=>`<option ${r===settings.myRole?"selected":""}>${esc(r)}</option>`).join("")}</select></div></div><button type="submit" class="btn">ابدأ</button></form>` : "";
-  let h = welcome + roleBar() + `<div class="tabs noprint" role="group" aria-label="ابدأ من">${tabs.map(([k,t])=>`<button type="button" data-tab="${k}" aria-pressed="${S.tab===k}">${t}</button>`).join("")}</div>
+  let h = welcome + (S.tab==="req"?"":roleBar()) + `<div class="tabs noprint" role="group" aria-label="ابدأ من">${tabs.map(([k,t])=>`<button type="button" data-tab="${k}" aria-pressed="${S.tab===k}">${t}</button>`).join("")}</div>
    <div class="search noprint"><input type="search" id="q" placeholder="ابحث بكلمة: إذاعة، علاجي، إخلاء، غياب…" value="${esc(S.q)}" aria-label="بحث"></div><div id="res"></div>`;
   $("#app").innerHTML = h; bindRole();
-  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;store.set("tab",S.tab);render()});
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;store.set("coverageTab",S.tab);render()});
   const welcomeForm=$("#welcome");if(welcomeForm)welcomeForm.onsubmit=e=>{e.preventDefault();const name=$("#welcomeName").value.trim();if(name.length<3){$("#welcomeName").focus();return}settings.me=name;settings.myRole=$("#welcomeRole").value;saveSettings();render()};
   const q=$("#q"); q.oninput=()=>{S.q=q.value;paintRes()};
   paintRes();
@@ -308,6 +389,7 @@ function viewHome(){
 function norm(s){return String(s||"").replace(/[ً-ْـ]/g,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه")}
 function paintRes(){
   const box=$("#res"); const q=norm(S.q.trim());
+  if(S.tab==="req"){paintCoverage();return}
   if(q.length>=2){
     const terms=q.split(/\s+/);
     const hit=B.cards.filter(c=>forRole(c)&&terms.every(t=>norm(c.id+" "+c.t+" "+(c.domt||"")+" "+(c.brief||"")+" "+(REC[c.rec]?REC[c.rec].name:"")).includes(t)));
@@ -447,14 +529,14 @@ function lastSchoolDay(){const d=new Date();for(let i=0;i<60;i++){const iso=isoO
 
 /* ---------- إنشاء الشاهد ---------- */
 let EV=null;
-function startEvidence(cardId, fromInd){
+function startEvidence(cardId, fromInd, requirementId){
   const c=CARD[cardId]; const r=REC[c.rec]||null;
   const form = r && c.form ? r.forms[c.form] : null;
   const inds = c.ind.length===1 ? [c.ind[0]] : (fromInd && c.ind.includes(fromInd) ? [fromInd] : []);
   EV={v:1, id:"", card:c.id, kind:c.k, title:c.t, rec:c.rec||"", recName:r?r.name:"", dom:c.dom||"", domt:c.domt||"",
     stage:c.stage||(B.school.stages.length===1?B.school.stages[0]:""), inds, date:lastSchoolDay(), actor:settings.me||((c.names||[]).length===1?c.names[0]:""), evCode:c.k==="rec"?c.id:"", evItem:c.k==="rec"?c.t:"", actorRole:(c.k==="imp"||!c.own)?(settings.myRole==="الكل"?"":settings.myRole):c.own,
     ben:"", count:"", did:"", note:"", before:"", after:"", measure:"", step:"", form:form?form.code:"", formVals:{}, level:c.lv||"تنفيذ",
-    photos:[], created:new Date().toISOString(), review:null};
+    requirementIds:requirementIds([requirementId]), photos:[], created:new Date().toISOString(), review:null};
   go("make");
 }
 function viewMake(){
@@ -471,7 +553,7 @@ function viewMake(){
   <div class="cols"><div>
    <div class="head"><div class="chips">${lvPill(c.lv)}<span class="small muted">${c.k==="imp"?"خطة التحسين · "+esc(c.stage)+" · الإجراء "+c.n:c.k==="prg"?"برنامج "+esc(c.goal||""):"بند شاهد"}</span></div>
    <h1>${md(c.t)}</h1>${ctx}</div>
-   <form id="fm" class="panel" autocomplete="off">`;
+   <form id="fm" class="panel" autocomplete="off">${requirementPicker(EV)}`;
   if(c.k==="imp"&&c.steps.length) h+=`<div class="f"><label>أي خطوة نفّذت؟</label><div class="opts">${c.steps.map((s,ix)=>`<button type="button" class="chip ${EV.step===s?"on":""}" data-step="${ix}">${ix+1}. ${esc(s.length>70?s.slice(0,70)+"…":s)}</button>`).join("")}</div></div>`;
   if(c.k==="prg"&&(c.evs||[]).length) h+=`<div class="f"><label>أي شاهد من شواهد البرنامج؟</label><div class="opts">${c.evs.map(x=>`<button type="button" class="chip ${EV.evCode===x.code?"on":""}" data-evc="${esc(x.code)}">${esc(x.item)}</button>`).join("")}</div></div>`;
   h+=`<div class="grid2"><div class="f"><label for="f_date">تاريخ التنفيذ</label><input type="date" id="f_date" value="${esc(EV.date)}" max="${todayISO()}"${settings.yearStart?` min="${settings.yearStart}"`:""}><span class="hint" id="hd"></span></div>
@@ -504,6 +586,7 @@ function viewMake(){
    </aside></div><div class="mobile-action noprint"><span id="mobileCount" role="status" aria-live="polite"></span><button type="button" class="btn" id="mobilePrev">معاينة الشاهد</button></div>`;
   $("#app").innerHTML=h; $("#bk").onclick=back;
   $("#mobilePrev").onclick=()=>$("#btnPrev").click();
+  document.querySelectorAll("[data-requirement-pick]").forEach(el=>el.onchange=()=>{EV.requirementIds=requirementIds([...document.querySelectorAll("[data-requirement-pick]:checked")].map(e=>e.value));$("#requirementSelection").textContent=EV.requirementIds.length?"المتطلبات المحددة: "+EV.requirementIds.join("، "):"اختر المتطلبات التي يخدمها الشاهد"});
   const bindVal=(id,key)=>{const el=$("#"+id);if(el)el.oninput=()=>{EV[key]=el.value;if(key==="date")paintDay();check()}};
   const paintDay=()=>{const b=dayBlock(EV.date),el=$("#hd");el.textContent=b?b+(b.startsWith("تاريخ في المستقبل")?".":". اختر يوم دوام."):fmtDay(EV.date)+" "+fmtH(EV.date);el.style.color=b?"var(--warn)":"";el.style.fontWeight=b?"600":""};
   [["f_date","date"],["f_actor","actor"],["f_role","actorRole"],["f_ben","ben"],["f_count","count"],["f_did","did"],["f_note","note"],["f_measure","measure"],["f_before","before"],["f_after","after"]].forEach(a=>bindVal(...a));
@@ -776,8 +859,11 @@ function boardAdd(ev){
     decision:text(rv.decision),reviewLevel:text(rv.level),reviewedAt:text(rv.date),photos:(ev.photos||[]).length};
   const data=store.get("board",[]), rows=Array.isArray(data)?data:[];
   const at=rows.findIndex(x=>x.id===item.id);
+  const previousRequirements=at>=0?requirementIds(rows[at].requirementIds):[];
   if(at<0)rows.push(item);
   else if(!rows[at].decision || item.decision)rows[at]=item;
+  const saved=rows.find(x=>x.id===item.id);
+  if(saved)saved.requirementIds=Object.hasOwn(ev,"requirementIds")?requirementIds(ev.requirementIds):previousRequirements;
   store.set("board",rows);
 }
 function boardRows(){
@@ -860,7 +946,8 @@ $("#fileLogo").onchange=async e=>{const f=e.target.files[0];e.target.value="";if
 function render(){
   window.onresize=null;
   $("#app").dataset.view=S.view;
-  ({home:viewHome,rec:viewRecord,ind:viewIndicator,make:viewMake,preview:viewPreview,review:viewReview,board:viewBoard,settings:viewSettings}[S.view]||viewHome)();
+  ({home:viewHome,requirement:viewRequirement,rec:viewRecord,ind:viewIndicator,make:viewMake,preview:viewPreview,review:viewReview,board:viewBoard,settings:viewSettings}[S.view]||viewHome)();
+  if(S.view==="preview"||S.view==="review")showRequirementContext(S.view==="review"?RV:EV);
 }
 const topObserver=new ResizeObserver(()=>document.body.style.setProperty("--top-height",$(".top").offsetHeight+"px"));topObserver.observe($(".top"));
 paintSchool(); render();
