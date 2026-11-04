@@ -172,6 +172,8 @@ button,summary{min-width:44px}
 .requirement-details{margin-top:10px}
 .coverage-tools{margin-top:12px}
 
+ .chip.priority{background:var(--wash);color:var(--accent);border-color:var(--accent);font-weight:600}
+
 /* ===== صفحة الشاهد A4 ===== */
 .sheet-scroll{overflow-x:auto;background:var(--soft);border-radius:var(--r);padding:12px}
 .sheet-fit{transform-origin:top right}
@@ -315,13 +317,17 @@ function roleBar(){
     <select id="roleSel">${["الكل",...B.roles].map(r=>`<option ${r===role()?"selected":""}>${esc(r)}</option>`).join("")}</select>
     <span class="small muted">تظهر البطاقات المسندة إلى هذه الصفة</span></div>`}
 function bindRole(){const s=$("#roleSel");if(s)s.onchange=()=>{settings.myRole=s.value;saveSettings();render()}}
+let priorityRequirements=[];
+function refreshPriorities(){priorityRequirements=coverageRows().filter(r=>!r.complete)}
+function cardCoversRequirement(c,r){return r.id===4?c.k==="imp":r.records.includes(c.rec)}
 function cardRow(c, opts={}){
+  const needed=priorityRequirements.filter(r=>cardCoversRequirement(c,r));
   let src = "";
   if(c.k==="rec") src = `${esc(c.rec)} · ${esc(c.domt||"")}`;
   if(c.k==="prg") src = `برنامج في الخطة التشغيلية · يُحفظ في ${esc(c.rec)}`;
   if(c.k==="imp") src = `خطة التحسين · ${esc(c.stage)} · الإجراء ${c.n}`;
   return `<button type="button" class="card" data-card="${esc(c.id)}">
-    <div class="meta">${lvPill(c.lv)}${c.k!=="imp"?`<span class="code" style="direction:rtl">${codeTxt(c.id)}</span>`:""}${opts.hideSrc?"":`<span>${src}</span>`}</div>
+    <div class="meta">${lvPill(c.lv)}${needed.length?`<span class="chip priority" title="مطلوب لتغطية المتطلبات: ${needed.map(r=>r.id).join("، ")}">أولوية</span>`:""}${c.k!=="imp"?`<span class="code" style="direction:rtl">${codeTxt(c.id)}</span>`:""}${opts.hideSrc?"":`<span>${src}</span>`}</div>
     <div class="t">${md(c.t)}</div>
     <div class="meta"><span>المنفذ: ${esc(c.own||"—")}</span>${c.when?`<span>· ${esc(c.when)}</span>`:""}${c.week?`<span>· ${esc(c.term||"")} ${esc(c.week)}</span>`:""}</div>
     <span class="go">وثّق ←</span></button>`}
@@ -357,11 +363,12 @@ function showRequirementContext(ev){const ids=requirementIds(ev&&ev.requirementI
   const reviewSave=$("#rJson");if(reviewSave){const before=new Set(coverageRows().filter(r=>r.complete).map(r=>r.id));reviewSave.addEventListener("click",()=>{if(coverageRows().some(r=>ids.includes(r.id)&&r.complete&&!before.has(r.id))){go("home",{tab:"rec",q:""});toast("اكتملت التغطية. تقدّم المتطلب التالي.")}})}
 }
 function viewRequirement(){
+  refreshPriorities();
   const toolsWereOpen=$(".requirement-detail")?.dataset.requirement===String(S.requirement)&&$(".coverage-tools")?.open;
   const r=coverageRows().find(x=>x.id===S.requirement);if(!r){go("coverage",{q:""});return}
   const available=coverageBoard().filter(ev=>!requirementIds(ev.requirementIds).includes(r.id));
   const next=coverageRows().find(x=>!x.complete&&x.id!==r.id);
-  const cards=B.cards.filter(c=>r.id===4?c.k==="imp":r.records.includes(c.rec));
+  const cards=B.cards.filter(c=>cardCoversRequirement(c,r));
   $("#app").innerHTML=`<button type="button" class="back" id="reqBack">رجوع إلى التغطية</button><section class="requirement-detail"><div class="panel"><span class="small muted">المتطلب ${r.id}</span><h1>${esc(r.title)}</h1><p id="requirementStatus" role="status">اعتُمد ${r.approved} من ${r.target} شواهد · المتبقي ${Math.max(0,r.target-r.approved)}</p>${r.complete?`<p class="note ok">اكتملت تغطية هذا المتطلب</p><button type="button" class="btn" id="nextRequirement">${next?"انتقل إلى المتطلب التالي":"عرض اكتمال التغطية"}</button>`:""}<p><b>مسؤول التجهيز:</b> ${esc(r.owner)}</p><p><b>المطلوب إرفاقه:</b> ${esc(r.attachments)}</p><p><b>المراجع:</b> ${esc(r.reviewer)}</p></div>
    <form class="panel requirement-target" id="requirementTargetForm"><label for="requirementTarget">المستهدف من الشواهد المعتمدة<input type="number" id="requirementTarget" min="1" max="9999" step="1" required value="${r.target}"></label><button type="submit" class="btn ghost">حفظ المستهدف</button></form>
    <div class="panel"><h2>الشواهد المرتبطة</h2><p class="small muted">الصور لا تزيد العدد. يُحسب رقم الشاهد مرة واحدة بعد اعتماد المراجع. أضف ملفات الشاهد JSON بعد المراجعة؛ سلّم الوثائق الأصلية عبر قناة المدرسة.</p><div class="list" id="requirementEvidence">${r.files.map(ev=>`<div class="row"><div class="body"><b>${esc(ev.actor)||"منفذ غير محدد"}</b><div class="small">${esc(ev.date)} · ${esc(ev.id)}</div><span class="small">${esc(ev.decision)||"بانتظار المراجعة"}</span></div><button type="button" class="btn ghost" data-unlink-evidence="${esc(ev.id)}" aria-label="إلغاء ربط الشاهد ${esc(ev.id)} بهذا المتطلب">إلغاء الربط</button></div>`).join("")||`<p class="muted">لم تُربط شواهد بهذا المتطلب بعد</p>`}</div><button type="button" class="btn" id="requirementImport">أضف ملفات شواهد لهذا المتطلب</button><p id="coverageImportStatus" role="status"></p>
@@ -428,6 +435,7 @@ function viewHome(){
 }
 function norm(s){return String(s||"").replace(/[ً-ْـ]/g,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه")}
 function paintRes(){
+  refreshPriorities();
   const box=$("#res"); const q=norm(S.q.trim());
   if(q.length>=2){
     const terms=q.split(/\s+/);
@@ -983,6 +991,7 @@ $("#fileLogo").onchange=async e=>{const f=e.target.files[0];e.target.value="";if
 
 /* ---------- العرض ---------- */
 function render(){
+  refreshPriorities();
   window.onresize=null;
   $("#app").dataset.view=S.view;
   ({home:viewHome,coverage:viewCoverage,requirement:viewRequirement,rec:viewRecord,ind:viewIndicator,make:viewMake,preview:viewPreview,review:viewReview,board:viewBoard,settings:viewSettings}[S.view]||viewHome)();
